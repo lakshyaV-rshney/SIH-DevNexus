@@ -1,0 +1,6 @@
+streamlit
+numpy
+pandas
+datasets
+h5py
+plotly
