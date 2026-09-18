@@ -137,22 +137,23 @@ def load_turing_dataset(steps, bands, token):
         return None, str(e)
 
 def load_or_generate_data():
+    TOTAL_STEPS = NUM_STEPS + WARMUP_STEPS
     if use_hf_dataset and HAS_H5PY:
         with st.spinner("Connecting to Turing Synthetic Radar Dataset..."):
             token = get_hf_token()
-            gt, status = load_turing_dataset(NUM_STEPS, NUM_BANDS, token)
+            gt, status = load_turing_dataset(TOTAL_STEPS, NUM_BANDS, token)
             if gt is not None:
                 st.success("Successfully loaded real radar data from Hugging Face!")
                 return gt
             elif status == "ACCESS_DENIED" or status == "INVALID_TOKEN":
                 st.error("Authentication Failed: The API Token you entered is invalid or does not have access to this gated dataset. Please check your token.")
                 st.warning("Using synthetic fallback data instead.")
-                return generate_ground_truth(NUM_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
+                return generate_ground_truth(TOTAL_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
             else:
                 st.warning(f"Failed to load dataset: {status}. Using synthetic fallback.")
-                return generate_ground_truth(NUM_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
+                return generate_ground_truth(TOTAL_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
     else:
-        return generate_ground_truth(NUM_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
+        return generate_ground_truth(TOTAL_STEPS, NUM_BANDS, num_static, num_periodic, num_agile)
 
 ground_truth = load_or_generate_data()
 
@@ -254,12 +255,9 @@ with tab1:
         
         for name, agent in schedulers.items():
             # --- Time-Forwarding (Warm-up Phase) ---
-            # If the user wants to simulate how the AI acts after an hour of implementation,
-            # we run it silently here so it can build its mathematical belief state.
             if WARMUP_STEPS > 0 and name == "POMDP (Smart AI)":
-                for w in range(WARMUP_STEPS):
-                    data_idx = w % len(ground_truth)
-                    true_state = ground_truth[data_idx]
+                for t in range(WARMUP_STEPS):
+                    true_state = ground_truth[t]
                     action = agent.get_action()
                     obs = receiver_scan(action, true_state, PD, PFA)
                     agent.update(action, obs)
@@ -267,10 +265,13 @@ with tab1:
             detections, false_alarms, missed_opportunities = 0, 0, 0
             scans_history = []
             
-            for t in range(NUM_STEPS):
+            for step_idx in range(NUM_STEPS):
+                # The actual visible simulation starts AFTER the warmup steps
+                t = WARMUP_STEPS + step_idx
+                
                 # Update progress bar every ~5% of the total loop to avoid slowing down execution
                 if current_op % max(1, total_operations // 20) == 0:
-                    progress_bar.progress(current_op / total_operations, text=f"Simulating {name}... (Step {t}/{NUM_STEPS})")
+                    progress_bar.progress(current_op / total_operations, text=f"Simulating {name}... (Step {step_idx}/{NUM_STEPS})")
                 current_op += 1
                 
                 true_state = ground_truth[t]
@@ -285,7 +286,9 @@ with tab1:
                 if len(np.where(true_state == 1)[0]) > 0 and true_state[action] == 0:
                     missed_opportunities += 1
                     
-            interception_rate = detections / max(1, np.sum(ground_truth))
+            # We only calculate interception rate for the visible portion of the data!
+            visible_ground_truth = ground_truth[WARMUP_STEPS : WARMUP_STEPS + NUM_STEPS]
+            interception_rate = detections / max(1, np.sum(visible_ground_truth))
             reward = (detections * 10) - (false_alarms * 2) - (missed_opportunities * 5)
             
             results[name] = {
@@ -321,7 +324,10 @@ with tab1:
         col4.metric("Total Reward", smart_res['Reward'], smart_res['Reward'] - results['Sequential (Baseline)']['Reward'])
         
         st.subheader("Interactive Environment Scan Log")
-        t_true, b_true = np.where(ground_truth == 1)
+        
+        # Only plot the visible portion of the ground truth
+        visible_ground_truth = ground_truth[WARMUP_STEPS : WARMUP_STEPS + NUM_STEPS]
+        t_true, b_true = np.where(visible_ground_truth == 1)
         
         # Create a highly efficient scatter plot for thousands of points
         fig = go.Figure()
