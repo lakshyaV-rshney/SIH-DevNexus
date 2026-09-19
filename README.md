@@ -11,27 +11,25 @@
 
 </div>
 
-## 🎥 System Demonstration
+## System Demonstration
 <div align="center">
-  <video src="Demo.mp4" controls="controls" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-    <a href="Demo.mp4">View Demo Video</a>
-  </video>
+  <img src="demo.png" alt="Live Website" style="max-width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
 </div>
 <br>
 
-## 📋 Overview
+## Overview
 This repository contains the implementation of a Machine Learning-based Electronic Support (ES) receiver scheduler software. Developed for the **Defence Research and Development Organisation (DRDO)** under **SIH Problem Statement 26055**, this system replaces conventional open-loop scanning strategies with an intelligent, adaptive scheduler.
 
 The core of the architecture is a **Partially Observable Markov Decision Process (POMDP)**. Unlike traditional systems that blindly sweep across frequency bands regardless of emitter activity, this system continuously updates a mathematical belief state based on real-time observations (hits and misses) to intelligently decide which frequency band to scan next.
 
-## 🏗️ Architecture
+## Architecture
 The system consists of the following primary modules:
 1. **RF Environment Simulator**: Capable of ingesting actual radar datasets (e.g., Turing Synthetic Radar Dataset) or falling back to a synthetic generator mimicking periodic, frequency-agile, and static emitters.
 2. **Receiver Model**: Simulates realistic hardware constraints including Probability of Detection (Pd) and Probability of False Alarm (Pfa).
 3. **ML Scheduler (POMDP)**: Implements online Bayesian learning to update target probabilities and a policy function balancing exploitation (known active bands) and exploration (uncertainty and time since last scan). Upgraded to **Level 4 Intelligence** via a robust Statistical Mode Periodicity Tracker to eliminate harmonic aliasing and hardware noise.
 4. **Performance Evaluation Engine**: Calculates crucial figures of merit including Interception Rate, Total Reward, True Detections, and False Alarms.
 
-## 🚀 Installation and Execution
+## Installation and Execution
 
 ### Local Development
 To run this application locally on your machine, follow these steps:
@@ -61,7 +59,7 @@ To run this application locally on your machine, follow these steps:
    ```
    The application will launch in your default web browser (typically at `http://localhost:8501`).
 
-## ☁️ Deployment (Streamlit Community Cloud)
+## Deployment (Streamlit Community Cloud)
 This application is designed to be easily deployed to Streamlit Community Cloud for public demonstration without requiring any credit card or paid infrastructure.
 
 1. Ensure your repository is pushed to GitHub.
@@ -73,7 +71,7 @@ This application is designed to be easily deployed to Streamlit Community Cloud 
    ```
 5. Deploy the application.
 
-## 🔬 Scientific Merit and Extensibility
+## Scientific Merit and Extensibility
 This codebase demonstrates that a statistically grounded online learner (Belief-State Update) significantly outperforms sequential open-loop sweeps in dynamically changing Electronic Warfare environments. 
 
 For advanced integrations, the `POMDPScheduler` class in `app.py` is fully modular. It can be directly replaced with a Deep Reinforcement Learning (DRL) agent (such as PPO or DQN trained via Stable Baselines3) without requiring modifications to the simulation loop or the user interface.
