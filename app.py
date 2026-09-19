@@ -41,6 +41,11 @@ Welcome to the interactive demonstration for **SIH 26055: Smart Scan Strategy fo
 This application compares open-loop receiver scanning against an intelligent **Partially Observable Markov Decision Process (POMDP)** scheduler.
 """)
 
+try:
+    st.video("Demo.mp4")
+except Exception:
+    pass
+
 # --- Sidebar Configuration ---
 with st.sidebar:
     st.header("Simulation Parameters")
@@ -56,7 +61,7 @@ with st.sidebar:
     hf_token = st.text_input("HF Access Token (Optional)", type="password", help="Enter your valid HF token to access the gated dataset.")
     
     st.header("Time-Forwarding (Warm-up)")
-    WARMUP_STEPS = st.slider("AI Pre-training Steps (Simulate 1 hour of prior operation)", 0, 5000, 0, step=500, help="Allow the AI to run silently on the environment to build up its belief state before the visual simulation begins.")
+    WARMUP_STEPS = st.slider("AI Pre-training Steps (Simulate 1 hour of prior operation)", 0, 50000, 0, step=500, help="Allow the AI to run silently on the environment to build up its belief state before the visual simulation begins.")
     
     st.markdown("### Synthetic Emitter Settings (Fallback)")
     col1, col2 = st.columns(2)
@@ -203,9 +208,10 @@ class POMDPScheduler:
         for b in range(self.num_bands):
             if self.period_estimates[b] > 0 and len(self.hit_history[b]) > 0:
                 time_since_last_hit = self.current_time - self.hit_history[b][-1]
-                # If we are right at the expected period window, spike the score to intercept it!
-                if time_since_last_hit > 0 and abs(time_since_last_hit - self.period_estimates[b]) <= 1:
-                    periodicity_score[b] = 1.0
+                if time_since_last_hit > 0:
+                    rem = time_since_last_hit % self.period_estimates[b]
+                    if rem <= 1 or rem >= self.period_estimates[b] - 1:
+                        periodicity_score[b] = 1.0
                     
         scores = (alpha * self.beliefs) + (beta * uncertainty) + (gamma * normalized_freshness) + (delta_weight * periodicity_score)
         return np.argmax(scores)
@@ -220,14 +226,27 @@ class POMDPScheduler:
         
         if observation == 1:
             predicted_beliefs[action] = min(0.99, predicted_beliefs[action] + 0.3)
-            # Record hit for periodicity tracking
             self.hit_history[action].append(self.current_time)
-            if len(self.hit_history[action]) > 3:
+            
+            # Keep history from growing unbounded
+            if len(self.hit_history[action]) > 10:
                 self.hit_history[action].pop(0)
-            # Estimate period if we have at least 2 hits
+                
             if len(self.hit_history[action]) >= 2:
                 delta = self.hit_history[action][-1] - self.hit_history[action][-2]
-                self.period_estimates[action] = delta
+                
+                # Robust Periodicity Estimator: Use the statistical Mode (most frequent delta)
+                # This completely filters out random False Alarms which create random chaotic deltas!
+                if not hasattr(self, 'delta_counts'):
+                    self.delta_counts = [{} for _ in range(self.num_bands)]
+                    
+                counts = self.delta_counts[action]
+                counts[delta] = counts.get(delta, 0) + 1
+                
+                # Only trust a period if we've seen that exact delta at least twice
+                best_delta = max(counts.keys(), key=lambda k: counts[k])
+                if counts[best_delta] >= 2:
+                    self.period_estimates[action] = best_delta
         else:
             predicted_beliefs[action] = max(0.01, predicted_beliefs[action] - 0.3)
             

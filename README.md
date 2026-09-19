@@ -1,5 +1,10 @@
 # POMDP Belief-State Smart Scan Scheduler (SIH 26055)
 
+### Watch the Demo
+<video src="Demo.mp4" controls="controls" style="max-width: 100%;">
+  <a href="Demo.mp4">View Demo Video</a>
+</video>
+
 ## Overview
 This repository contains the implementation of a Machine Learning-based Electronic Support (ES) receiver scheduler software. Developed for the **Defence Research and Development Organisation (DRDO)** under **SIH Problem Statement 26055**, this system replaces conventional open-loop scanning strategies with an intelligent, adaptive scheduler.
 
